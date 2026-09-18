@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import time
 import base64
 import hashlib
 import http.server
@@ -113,6 +114,7 @@ def oauth(args) -> dict:
         })
         refreshed.setdefault("refresh_token", token["refresh_token"])
         token.update(refreshed)
+        token["obtained_at"] = int(time.time())
         atomic_json(token_file, token)
         return token
 
@@ -165,8 +167,13 @@ def oauth(args) -> dict:
         "redirect_uri": redirect,
         "grant_type": "authorization_code",
     })
+    token["obtained_at"] = int(time.time())
     atomic_json(token_file, token)
     return token
+
+
+class AuthExpiredError(RuntimeError):
+    pass
 
 
 def api_get(path: str, token: str, params: dict[str, str] | None = None) -> dict:
@@ -179,6 +186,8 @@ def api_get(path: str, token: str, params: dict[str, str] | None = None) -> dict
             return json.loads(response.read().decode())
     except urllib.error.HTTPError as error:
         detail = error.read().decode(errors="replace")
+        if error.code == 401:
+            raise AuthExpiredError(f"Google Calendar authentication expired: {detail}") from error
         raise RuntimeError(f"Google Calendar HTTP {error.code}: {detail}") from error
 
 
@@ -222,6 +231,7 @@ def normalize_event(item: dict) -> dict | None:
 
 def sync(args) -> int:
     token = oauth(args)
+    args.reauthorize_attempted = False
     now = datetime.now().astimezone()
     window_end = now + timedelta(days=args.days)
     events: list[dict] = []
@@ -239,7 +249,16 @@ def sync(args) -> int:
             }
             if page_token:
                 params["pageToken"] = page_token
-            data = api_get(f"/calendars/{urllib.parse.quote(calendar_id, safe='')}/events", token, params)
+            try:
+                data = api_get(f"/calendars/{urllib.parse.quote(calendar_id, safe='')}/events", token.get("access_token", ""), params)
+            except AuthExpiredError:
+                if args.reauthorize_attempted:
+                    raise RuntimeError("Google access token remains invalid after reauthorization")
+                print("Google access token rejected; starting OAuth reauthorization...", flush=True)
+                args.reauthorize_attempted = True
+                args.reauthorize = True
+                token = oauth(args)
+                data = api_get(f"/calendars/{urllib.parse.quote(calendar_id, safe='')}/events", token.get("access_token", ""), params)
             for item in data.get("items", []):
                 event = normalize_event({**item, "calendarId": calendar_id})
                 if event and event.get("status") != "cancelled":
