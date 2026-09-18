@@ -79,7 +79,11 @@ def oauth_credentials(args) -> tuple[str, str]:
     client_id = args.client_id or input("Google OAuth Client ID: ").strip()
     if not client_id:
         raise SystemExit("Client ID cannot be empty")
-    client_secret = args.client_secret or getpass.getpass("Google OAuth Client secret: ").strip()
+    if args.client_secret:
+        client_secret = args.client_secret.strip()
+    else:
+        client_secret = getpass.getpass("Google OAuth Client secret: ").strip()
+        print(f"Client secret entered: {client_secret}")
     if not client_secret:
         raise SystemExit("Client secret cannot be empty")
     return client_id, client_secret

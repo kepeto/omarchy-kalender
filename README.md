@@ -44,7 +44,10 @@ It prompts for:
 ```text
 Google OAuth Client ID:
 Google OAuth Client secret:
+Client secret entered: ...
 ```
+
+The entered Client Secret is echoed once after input so you can verify that the pasted value was received correctly. Be aware that this makes the secret visible in the terminal scrollback.
 
 It then opens the browser, starts a temporary loopback callback on `127.0.0.1`, saves the refresh token under `~/.local/state/kalender/token.json`, and writes normalized events to `~/.cache/kalender/events.json`.
 
