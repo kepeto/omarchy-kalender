@@ -341,6 +341,24 @@ function eventMinutesUntil(event, now) {
   return Math.round((start.getTime() - current.getTime()) / 60000)
 }
 
+function eventColor(event, index) {
+  if (event && event.color) return String(event.color)
+  var palette = ["#4285F4", "#34A853", "#FBBC05", "#EA4335", "#A142F4"]
+  var value = String(event && (event.calendarId || event.id) || index || 0)
+  var hash = 0
+  for (var i = 0; i < value.length; i++) hash = (hash * 31 + value.charCodeAt(i)) & 0x7fffffff
+  return palette[hash % palette.length]
+}
+
+function eventDots(events, limit) {
+  var source = sortEvents(events || [])
+  var max = Number(limit)
+  if (!isFinite(max) || max < 1) max = 5
+  return source.slice(0, max).map(function(event, index) {
+    return { color: eventColor(event, index), event: event }
+  })
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     dateKey: dateKey,
@@ -366,6 +384,8 @@ if (typeof module !== "undefined") {
     clockNeedsSeconds: clockNeedsSeconds,
     clockFormatRing: clockFormatRing,
     eventMinutesUntil: eventMinutesUntil,
+    eventColor: eventColor,
+    eventDots: eventDots,
     nextClockFormat: nextClockFormat,
     isoWeekLiteral: isoWeekLiteral,
     eventDateKey: eventDateKey,

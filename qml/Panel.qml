@@ -705,33 +705,42 @@ Panel {
                       width: root.cellWidth
                       height: root.cellHeight
                       radius: Style.cornerRadius
-                      // Today is outlined, not filled: a lit-up block shouts
-                      // over a grid this quiet.
-                      color: "transparent"
+                      color: modelData.today
+                        ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.18)
+                        : "transparent"
                       border.width: modelData.today ? Style.spacing.hairline : 0
                       border.color: Style.normalBorderFor(root.contentForeground, Color.accent)
 
                       Text {
                         textFormat: Text.PlainText
-                        anchors.centerIn: parent
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.top: parent.top
+                        anchors.topMargin: Style.space(3)
                         text: modelData.day
-                        color: modelData.inMonth
-                          ? (modelData.weekend ? Qt.darker(root.contentForeground, 1.45) : root.contentForeground)
-                          : Qt.darker(root.contentForeground, 2.2)
+                        color: modelData.inMonth ? root.contentForeground : Qt.darker(root.contentForeground, 2.2)
                         font.family: root.contentFontFamily
                         font.pixelSize: Style.font.body
                         font.bold: modelData.today
                       }
 
-                      Text {
-                        visible: Model.eventsForDate(root.events, modelData.key).length > 0
-                        anchors.right: parent.right
+                      Row {
+                        id: eventDotsRow
+                        anchors.horizontalCenter: parent.horizontalCenter
                         anchors.bottom: parent.bottom
-                        anchors.rightMargin: Style.space(4)
-                        anchors.bottomMargin: Style.space(2)
-                        text: "•"
-                        color: Color.accent
-                        font.pixelSize: Style.font.caption
+                        anchors.bottomMargin: Style.space(4)
+                        spacing: Style.space(3)
+
+                        Repeater {
+                          model: Model.eventDots(Model.eventsForDate(root.events, modelData.key), 5)
+
+                          Rectangle {
+                            required property var modelData
+                            width: Style.space(5)
+                            height: width
+                            radius: width / 2
+                            color: modelData.color
+                          }
+                        }
                       }
 
                       MouseArea {
