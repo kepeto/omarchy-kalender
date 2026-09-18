@@ -8,6 +8,7 @@ The normalized cache is consumed by QML at ~/.cache/kalender/events.json.
 from __future__ import annotations
 
 import argparse
+import getpass
 import base64
 import hashlib
 import http.server
@@ -71,6 +72,19 @@ def credentials(path: Path) -> tuple[str, str]:
     return client_id, client_secret
 
 
+def oauth_credentials(args) -> tuple[str, str]:
+    """Resolve credentials from a file or secure interactive prompts."""
+    if args.client_secret_file:
+        return credentials(args.client_secret_file)
+    client_id = args.client_id or input("Google OAuth Client ID: ").strip()
+    if not client_id:
+        raise SystemExit("Client ID cannot be empty")
+    client_secret = args.client_secret or getpass.getpass("Google OAuth Client secret: ").strip()
+    if not client_secret:
+        raise SystemExit("Client secret cannot be empty")
+    return client_id, client_secret
+
+
 def post_form(url: str, values: dict[str, str]) -> dict:
     body = urllib.parse.urlencode(values).encode()
     request = urllib.request.Request(url, data=body, headers={"Content-Type": "application/x-www-form-urlencoded"})
@@ -82,19 +96,19 @@ def post_form(url: str, values: dict[str, str]) -> dict:
         raise RuntimeError(f"Google OAuth HTTP {error.code}: {detail}") from error
 
 
-def oauth(client_file: Path, no_browser: bool = False) -> dict:
-    client_id, client_secret = credentials(client_file)
+def oauth(args) -> dict:
+    client_id, client_secret = oauth_credentials(args)
     token_file = state_path() / "token.json"
     token = load_json(token_file, {}) or {}
-    if token.get("refresh_token"):
+    if token.get("refresh_token") and not args.reauthorize:
         refreshed = post_form(TOKEN_ENDPOINT, {
             "client_id": client_id,
             "client_secret": client_secret,
             "refresh_token": token["refresh_token"],
             "grant_type": "refresh_token",
         })
+        refreshed.setdefault("refresh_token", token["refresh_token"])
         token.update(refreshed)
-        token["refresh_token"] = token.get("refresh_token", token.get("refresh_token"))
         atomic_json(token_file, token)
         return token
 
@@ -134,7 +148,7 @@ def oauth(client_file: Path, no_browser: bool = False) -> dict:
     })
     url = f"{AUTH_ENDPOINT}?{query}"
     print(f"Authorize Kalender in your browser:\n{url}", flush=True)
-    if not no_browser:
+    if not args.no_browser:
         subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     thread.join(timeout=300)
     server.server_close()
@@ -203,7 +217,7 @@ def normalize_event(item: dict) -> dict | None:
 
 
 def sync(args) -> int:
-    token = oauth(args.client_secret, args.no_browser)
+    token = oauth(args)
     now = datetime.now().astimezone()
     window_end = now + timedelta(days=args.days)
     events: list[dict] = []
@@ -237,7 +251,11 @@ def sync(args) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Sync Google Calendar events for Kalender")
-    parser.add_argument("--client-secret", type=Path, required=True, help="Google OAuth desktop client JSON")
+    credentials_group = parser.add_mutually_exclusive_group()
+    credentials_group.add_argument("--client-secret-file", type=Path, help="Google OAuth client JSON (file mode)")
+    credentials_group.add_argument("--client-id", help="Google OAuth client ID; omit to enter interactively")
+    parser.add_argument("--client-secret", help="OAuth client secret; omit to enter securely with a hidden prompt")
+    parser.add_argument("--reauthorize", action="store_true", help="Ignore saved token and run OAuth again")
     parser.add_argument("--calendar-id", action="append", help="Calendar ID; repeat for multiple calendars (default: primary)")
     parser.add_argument("--days", type=int, default=30, help="Days ahead to fetch (default: 30)")
     parser.add_argument("--cache", type=Path, default=cache_path())

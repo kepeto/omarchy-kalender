@@ -4,28 +4,24 @@ Omarchy shell calendar plugin by **kepeto**.
 
 > Status: Google Calendar sync is implemented using a standard-library Python OAuth loopback flow. The normalized event model, calendar event markers, agenda mode, and cache reader are included. Notification scheduling remains next.
 
-## Planned features
+## Features
 
 - Localized date, weekday, month, and time formatting through the desktop Qt locale.
 - Three panel modes: stock calendar, agenda, and hybrid calendar + agenda.
-- Google Calendar sync through a separate local helper, keeping OAuth tokens outside QML.
-- Notifications at 60, 30, 15, and 0 minutes before timed events.
-- All-day event notification at 08:00 local time.
-- 20-character event labels with an ellipsis.
-- Configurable bounce-marquee animation on startup/restart and every 15 minutes.
+- Google Calendar OAuth 2.0 loopback login with interactive Client ID and hidden Client Secret prompts.
+- Timed and all-day event normalization, 20-character title clipping, and event markers.
+- Atomic event cache under `~/.cache/kalender/events.json`.
 
-## Current scaffold
+## Files
 
 - `manifest.json` — third-party Omarchy plugin manifest.
-- `qml/BarWidget.qml` — forked clock bar widget with the new `kepeto.kalender` IPC identity.
-- `qml/Panel.qml` — forked stock calendar panel, now using the configured Qt locale for labels.
-- `qml/Model.js` — forked date/calendar logic.
-- `docs/PLAN.md` — implementation plan, decisions, and open questions.
-- `scripts/kalender-sync.py` — Google OAuth loopback sync, Calendar API fetch, normalization, and atomic cache writer.
+- `qml/BarWidget.qml` — compact bar widget and cache reader.
+- `qml/Panel.qml` — calendar, agenda, and hybrid presentation.
+- `qml/Model.js` — pure date and event transformation logic.
+- `scripts/kalender-sync.py` — OAuth loopback sync, Calendar API fetch, normalization, and atomic cache writer.
+- `docs/PLAN.md` — implementation plan and remaining work.
 
-## Development
-
-The plugin follows the current Omarchy plugin contract: a root `manifest.json` and QML entry point. Install or test locally with:
+## Install
 
 ```bash
 mkdir -p ~/.config/omarchy/plugins/kepeto.kalender
@@ -33,12 +29,44 @@ cp -a ./* ~/.config/omarchy/plugins/kepeto.kalender/
 omarchy-shell shell rescanPlugins
 omarchy plugin enable kepeto.kalender
 omarchy bar put kepeto.kalender --section center
-
-# First-time Google OAuth + sync (create a Google OAuth Desktop client JSON first)
-python3 scripts/kalender-sync.py --client-secret ~/.config/kalender/client_secret.json
-
-# Optional fixture cache for local UI testing
-python3 scripts/kalender-sync.py --fixture config/events.example.json --cache ~/.cache/kalender/events.json
 ```
 
-Read the code before enabling it: Omarchy plugins execute unsandboxed inside the long-running `omarchy-shell` process.
+## Google Calendar OAuth
+
+Create a Google Cloud OAuth client with application type **Desktop app** and enable the Google Calendar API. The tool accepts credentials interactively, so the secret is not placed in shell history:
+
+```bash
+python3 ~/.config/omarchy/plugins/kepeto.kalender/scripts/kalender-sync.py
+```
+
+It prompts for:
+
+```text
+Google OAuth Client ID:
+Google OAuth Client secret:
+```
+
+It then opens the browser, starts a temporary loopback callback on `127.0.0.1`, saves the refresh token under `~/.local/state/kalender/token.json`, and writes normalized events to `~/.cache/kalender/events.json`.
+
+For automation, pass the Client ID and secret explicitly, or use the legacy JSON file mode:
+
+```bash
+python3 scripts/kalender-sync.py \
+  --client-id 'YOUR_CLIENT_ID.apps.googleusercontent.com' \
+  --client-secret 'YOUR_CLIENT_SECRET'
+
+python3 scripts/kalender-sync.py \
+  --client-secret-file ~/.config/kalender/client_secret.json
+```
+
+Use `--reauthorize` to force a new consent flow. Do not commit credentials or token files.
+
+## Fixture testing
+
+```bash
+python3 scripts/kalender-sync.py --help
+cp config/events.google-calendar-demo.json ~/.cache/kalender/events.json
+omarchy restart shell
+```
+
+Read the plugin code before enabling it: Omarchy plugins execute unsandboxed inside the long-running `omarchy-shell` process.
