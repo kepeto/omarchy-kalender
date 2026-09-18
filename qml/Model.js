@@ -326,7 +326,7 @@ function clipEventTitle(title, limit) {
 function eventTimeLabel(event, locale) {
   if (!event || event.allDay) return ""
   var date = eventStartDate(event)
-  return date && locale ? locale.toString(date, Locale.ShortFormat) : ""
+  return date && locale ? locale.toString(date, locale.timeFormat(Locale.ShortFormat)) : ""
 }
 
 function eventTimeRangeLabel(event, locale) {
@@ -334,7 +334,8 @@ function eventTimeRangeLabel(event, locale) {
   var start = eventStartDate(event)
   var end = new Date(event.end || event.endTime || 0)
   if (!start || isNaN(end.getTime()) || !locale) return ""
-  return locale.toString(start, Locale.ShortFormat) + "–" + locale.toString(end, Locale.ShortFormat)
+  var format = locale.timeFormat(Locale.ShortFormat)
+  return locale.toString(start, format) + "–" + locale.toString(end, format)
 }
 
 function eventDisplayTitle(event, limit) {
