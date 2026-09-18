@@ -875,7 +875,7 @@ Panel {
                     anchors.top: parent.top
                     anchors.margins: Style.space(5)
                     leftPadding: Style.space(6)
-                    text: (modelData.allDay ? "ALL DAY  " : Model.eventTimeLabel(modelData, root.labelLocale) + "  ") + String(modelData.title || modelData.summary || "(untitled)")
+                    text: Model.eventTimeRangeLabel(modelData, root.labelLocale) + "  " + String(modelData.title || modelData.summary || "(untitled)")
                     color: root.contentForeground
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.bodySmall

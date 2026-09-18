@@ -329,6 +329,14 @@ function eventTimeLabel(event, locale) {
   return date && locale ? locale.toString(date, Locale.ShortFormat) : ""
 }
 
+function eventTimeRangeLabel(event, locale) {
+  if (!event || event.allDay) return "ALL DAY"
+  var start = eventStartDate(event)
+  var end = new Date(event.end || event.endTime || 0)
+  if (!start || isNaN(end.getTime()) || !locale) return ""
+  return locale.toString(start, Locale.ShortFormat) + "–" + locale.toString(end, Locale.ShortFormat)
+}
+
 function eventDisplayTitle(event, limit) {
   return clipEventTitle(event && (event.title || event.summary), limit)
 }
@@ -395,6 +403,7 @@ if (typeof module !== "undefined") {
     eventsForDate: eventsForDate,
     clipEventTitle: clipEventTitle,
     eventTimeLabel: eventTimeLabel,
+    eventTimeRangeLabel: eventTimeRangeLabel,
     eventDisplayTitle: eventDisplayTitle
   }
 }
