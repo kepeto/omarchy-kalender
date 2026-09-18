@@ -327,34 +327,28 @@ Panel {
             Row {
               id: heroRow
               anchors.horizontalCenter: parent.horizontalCenter
-              spacing: Style.space(22)
+              spacing: Style.space(12)
 
               Text {
-                // Baseline-aligned, not center-aligned: "July 26" carries a
-                // descender, so centering the two boxes leaves the icon
-                // sitting visibly low against the digits.
                 anchors.baseline: heroDate.baseline
                 text: "󰃭"
                 color: heroMouse.containsMouse
                   ? Style.hoverStateColor(root.contentForeground, Color.accent)
                   : root.contentForeground
                 font.family: root.contentFontFamily
-                // Decorative, and deliberately outside the Style.font.*
-                // scale. Sized so the glyph reads at the cap height of the
-                // date beside it rather than towering over it.
-                font.pixelSize: 48
+                font.pixelSize: 38
               }
 
               Text {
                 id: heroDate
                 textFormat: Text.PlainText
                 anchors.verticalCenter: parent.verticalCenter
-                text: root.labelLocale.toString(root.today, Locale.LongFormat)
+                text: root.labelLocale.toString(root.today, "MMMM d")
                 color: heroMouse.containsMouse
                   ? Style.hoverStateColor(root.contentForeground, Color.accent)
                   : root.contentForeground
                 font.family: root.contentFontFamily
-                font.pixelSize: 52
+                font.pixelSize: 42
                 font.bold: true
               }
             }
@@ -589,13 +583,12 @@ Panel {
           }
 
           // Agenda data is shared by agenda and hybrid modes. The hybrid
-          // layout is introduced as a compact two-column arrangement in the
-          // next UI pass; keeping this data block separate makes that change
-          // mechanical without touching the event model.
+          // layout uses two columns: calendar on the left and agenda on the right.
           Item {
             visible: root.agendaMode || root.hybridMode
             width: parent.width
             height: agendaColumn.implicitHeight
+            anchors.horizontalCenter: parent.horizontalCenter
 
             Column {
               id: agendaColumn
