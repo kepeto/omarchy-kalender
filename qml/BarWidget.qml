@@ -22,7 +22,7 @@ BarWidget {
   readonly property string localeName: String(setting("locale", Quickshell.env("LC_TIME") || Quickshell.env("LANG") || "en_US")).replace(/\.UTF-8$/, "")
   readonly property var displayLocale: Qt.locale(root.localeName)
   property var events: []
-  readonly property int barEventWindowMinutes: Number(setting("barEventWindowMinutes", 60))
+  readonly property int barEventWindowMinutes: Number(setting("barEventWindowMinutes", 1440))
   readonly property var nextEvent: Model.sortEvents(events).filter(function(event) {
     if (!event || event.allDay) return false
     var minutes = Model.eventMinutesUntil(event, displayDate)
