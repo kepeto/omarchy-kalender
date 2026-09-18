@@ -191,6 +191,12 @@ def api_get(path: str, token: str, params: dict[str, str] | None = None) -> dict
         raise RuntimeError(f"Google Calendar HTTP {error.code}: {detail}") from error
 
 
+def list_calendar_ids(token: str) -> list[str]:
+    data = api_get("/users/me/calendarList", token, {"maxResults": "2500"})
+    ids = [item.get("id") for item in data.get("items", []) if item.get("id")]
+    return ids or ["primary"]
+
+
 def iso_utc(value: datetime) -> str:
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -233,9 +239,9 @@ def sync(args) -> int:
     token = oauth(args)
     args.reauthorize_attempted = False
     now = datetime.now().astimezone()
-    window_end = now + timedelta(days=args.days)
+    window_end = now + timedelta(days=args.days) if args.days is not None else None
     events: list[dict] = []
-    calendar_ids = args.calendar_id or ["primary"]
+    calendar_ids = args.calendar_id or list_calendar_ids(token.get("access_token", ""))
     for calendar_id in calendar_ids:
         page_token = None
         while True:
@@ -243,10 +249,11 @@ def sync(args) -> int:
                 "singleEvents": "true",
                 "orderBy": "startTime",
                 "showDeleted": "false",
-                "timeMin": iso_utc(now),
-                "timeMax": iso_utc(window_end),
                 "maxResults": "2500",
             }
+            if args.days is not None:
+                params["timeMin"] = iso_utc(now)
+                params["timeMax"] = iso_utc(window_end)
             if page_token:
                 params["pageToken"] = page_token
             try:
@@ -280,7 +287,7 @@ def main() -> int:
     parser.add_argument("--client-secret", help="OAuth client secret; omit to enter securely with a hidden prompt")
     parser.add_argument("--reauthorize", action="store_true", help="Ignore saved token and run OAuth again")
     parser.add_argument("--calendar-id", action="append", help="Calendar ID; repeat for multiple calendars (default: primary)")
-    parser.add_argument("--days", type=int, default=30, help="Days ahead to fetch (default: 30)")
+    parser.add_argument("--days", type=int, default=None, help="Limit fetch to this many days; default syncs all available events")
     parser.add_argument("--cache", type=Path, default=cache_path())
     parser.add_argument("--no-browser", action="store_true")
     args = parser.parse_args()
