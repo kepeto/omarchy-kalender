@@ -66,7 +66,10 @@ Panel {
   readonly property int weekStart: Model.normalizedWeekStart(setting("weekStartDay", null), Qt.locale().firstDayOfWeek)
   // Use the desktop locale for month/day names and date conventions. The
   // optional locale setting is useful when testing without changing the OS.
-  readonly property var labelLocale: Qt.locale(setting("locale", ""))
+  // Qt.locale("") follows the process locale, but LC_TIME can differ from
+  // LANG in Omarchy. Resolve the active time locale explicitly.
+  readonly property string localeName: String(setting("locale", Quickshell.env("LC_TIME") || Quickshell.env("LANG") || "en_US")).replace(/\.UTF-8$/, "")
+  readonly property var labelLocale: Qt.locale(root.localeName)
   readonly property string nextWeekStartLabel: labelLocale.dayName(Model.toggledWeekStart(weekStart), Locale.LongFormat)
   readonly property var weekdays: Model.weekdayOrder(weekStart)
   readonly property string uiCalendarLabel: root.displayMode === "calendar" ? "Calendar" : root.displayMode === "agenda" ? "Agenda" : "Hybrid"
@@ -843,7 +846,7 @@ Panel {
                 // "MAY 2026" and a "SEPTEMBER 2026".
                 width: Style.space(130)
                 horizontalAlignment: Text.AlignHCenter
-                text: Qt.formatDate(root.viewDate, "MMMM yyyy").toUpperCase()
+                text: root.labelLocale.toString(root.viewDate, "MMMM yyyy").toUpperCase()
                 color: Qt.darker(root.contentForeground, 1.4)
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.body

@@ -19,6 +19,8 @@ BarWidget {
   moduleName: "kepeto.kalender"
 
   property date displayDate: clock.date
+  readonly property string localeName: String(setting("locale", Quickshell.env("LC_TIME") || Quickshell.env("LANG") || "en_US")).replace(/\.UTF-8$/, "")
+  readonly property var displayLocale: Qt.locale(root.localeName)
   property var events: []
   readonly property var nextEvent: Model.sortEvents(events).filter(function(event) {
     var start = Model.eventStartDate(event)
@@ -44,7 +46,7 @@ BarWidget {
   readonly property bool showsSeconds: Model.clockNeedsSeconds(activeFormat)
   readonly property string displayText: formatted(displayDate)
   readonly property string eventText: nextEvent
-    ? (nextEvent.allDay ? "" : Model.eventTimeLabel(nextEvent, Qt.locale()) + " " + Model.eventDisplayTitle(nextEvent, eventTitleLimit))
+    ? (nextEvent.allDay ? "" : Model.eventTimeLabel(nextEvent, root.displayLocale) + " " + Model.eventDisplayTitle(nextEvent, eventTitleLimit))
     : ""
   readonly property string barText: eventText === "" ? displayText : displayText + "  ·  ⏰  " + eventText
   readonly property var verticalLines: displayText.split("\n")
@@ -83,7 +85,7 @@ BarWidget {
   }
 
   function formatted(date) {
-    return Qt.formatDateTime(date, activeFormat.replace(/ww/g, Model.isoWeekLiteral(date.getFullYear(), date.getMonth(), date.getDate())))
+    return root.displayLocale.toString(date, activeFormat.replace(/ww/g, Model.isoWeekLiteral(date.getFullYear(), date.getMonth(), date.getDate())))
   }
 
   // ---- Calendar popup. Shape contract for shell.summon/hide/toggle
