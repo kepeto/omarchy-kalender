@@ -338,6 +338,17 @@ function eventTimeRangeLabel(event, locale) {
   return locale.toString(start, format) + "–" + locale.toString(end, format)
 }
 
+function eventBarTimeLabel(event, now, locale) {
+  if (!event || event.allDay || !locale) return ""
+  var start = eventStartDate(event)
+  if (!start) return ""
+  var current = now instanceof Date ? now : new Date(now || Date.now())
+  var timeFormat = locale.timeFormat(Locale.ShortFormat)
+  var sameDate = start.getFullYear() === current.getFullYear() && start.getMonth() === current.getMonth() && start.getDate() === current.getDate()
+  if (sameDate) return locale.toString(start, timeFormat)
+  return locale.toString(start, "d MMM") + " " + locale.toString(start, timeFormat)
+}
+
 function eventDisplayTitle(event, limit) {
   return clipEventTitle(event && (event.title || event.summary), limit)
 }
@@ -405,6 +416,7 @@ if (typeof module !== "undefined") {
     clipEventTitle: clipEventTitle,
     eventTimeLabel: eventTimeLabel,
     eventTimeRangeLabel: eventTimeRangeLabel,
+    eventBarTimeLabel: eventBarTimeLabel,
     eventDisplayTitle: eventDisplayTitle
   }
 }

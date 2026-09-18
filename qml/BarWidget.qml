@@ -48,7 +48,7 @@ BarWidget {
   readonly property bool showsSeconds: Model.clockNeedsSeconds(activeFormat)
   readonly property string displayText: formatted(displayDate)
   readonly property string eventText: nextEvent
-    ? (nextEvent.allDay ? "" : Model.eventTimeRangeLabel(nextEvent, root.displayLocale) + " " + Model.eventDisplayTitle(nextEvent, eventTitleLimit))
+    ? (nextEvent.allDay ? "" : Model.eventBarTimeLabel(nextEvent, displayDate, root.displayLocale) + " " + Model.eventDisplayTitle(nextEvent, eventTitleLimit))
     : ""
   readonly property string barText: eventText === "" ? displayText : displayText + "  ·  ⏰  " + eventText
   readonly property var verticalLines: displayText.split("\n")
