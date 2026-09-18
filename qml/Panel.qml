@@ -388,8 +388,9 @@ Panel {
           //      a plain hairline said nothing, and whole days done
           //      over days in the year says the same thing louder.
           Item {
+            visible: false
             width: parent.width
-            height: yearBlock.y + yearBlock.height
+            height: 0
 
             Item {
               id: yearBlock
@@ -507,9 +508,9 @@ Panel {
           //      given an age; the same rail as the year above it, measured
           //      against a nominal lifetime.
           Item {
-            visible: root.birthYear > 0
+            visible: false
             width: parent.width
-            height: visible ? lifeBlock.height : 0
+            height: 0
 
             Item {
               id: lifeBlock
@@ -578,84 +579,6 @@ Panel {
             }
           }
 
-          // Display mode is persisted per widget. Keyboard shortcut: M.
-          Item {
-            width: parent.width
-            height: modeButton.implicitHeight + Style.space(8)
-
-            PanelActionButton {
-              id: modeButton
-              anchors.horizontalCenter: parent.horizontalCenter
-              iconText: root.uiCalendarLabel
-              tooltipText: "Switch view (M)"
-              foreground: root.contentForeground
-              fontFamily: root.contentFontFamily
-              onClicked: root.cycleDisplayMode()
-            }
-          }
-
-          // Event agenda follows the mockup: one compact time/title row per event.
-          Item {
-            visible: root.agendaMode || root.hybridMode
-            width: parent.width
-            height: agendaColumn.implicitHeight + Style.space(8)
-            anchors.horizontalCenter: parent.horizontalCenter
-
-            Column {
-              id: agendaColumn
-              width: parent.width
-              spacing: Style.space(4)
-
-              Text {
-                text: root.labelLocale.toString(new Date(root.selectedDateKey + "T00:00:00"), "dddd d MMMM").toUpperCase()
-                color: Qt.darker(root.contentForeground, 1.3)
-                font.family: root.contentFontFamily
-                font.pixelSize: Style.font.bodySmall
-                font.bold: true
-              }
-
-              Repeater {
-                model: root.selectedEvents
-
-                Rectangle {
-                  required property var modelData
-                  width: agendaColumn.width
-                  height: eventTitle.implicitHeight + Style.space(10)
-                  color: "transparent"
-
-                  Rectangle {
-                    anchors.left: parent.left
-                    anchors.top: parent.top
-                    anchors.bottom: parent.bottom
-                    width: Style.space(3)
-                    color: modelData.allDay ? Color.accent : Color.accent
-                  }
-
-                  Text {
-                    id: eventTitle
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: Style.space(5)
-                    leftPadding: Style.space(6)
-                    text: (modelData.allDay ? "ALL DAY  " : Model.eventTimeLabel(modelData, root.labelLocale) + "  ") + Model.eventDisplayTitle(modelData, root.eventTitleLimit)
-                    color: root.contentForeground
-                    font.family: root.contentFontFamily
-                    font.pixelSize: Style.font.bodySmall
-                    elide: Text.ElideRight
-                  }
-                }
-              }
-
-              Text {
-                visible: root.selectedEvents.length === 0
-                text: "No events"
-                color: Qt.darker(root.contentForeground, 1.8)
-                font.family: root.contentFontFamily
-                font.pixelSize: Style.font.bodySmall
-              }
-            }
-          }
 
           // ---- Month grid: week numbers down a gutter on the left, then
           //      the seven day columns. Always six rows of seven days.
@@ -888,6 +811,69 @@ Panel {
                 foreground: root.contentForeground
                 fontFamily: root.contentFontFamily
                 onClicked: root.moveMonth(1)
+              }
+            }
+          }
+
+          // Agenda is placed below the calendar, matching the reference mockup.
+          Item {
+            visible: root.agendaMode || root.hybridMode
+            width: parent.width
+            height: agendaColumn.implicitHeight + Style.space(8)
+            anchors.horizontalCenter: parent.horizontalCenter
+
+            Column {
+              id: agendaColumn
+              width: parent.width
+              spacing: Style.space(4)
+
+              Text {
+                text: root.labelLocale.toString(new Date(root.selectedDateKey + "T00:00:00"), "dddd d MMMM").toUpperCase()
+                color: Qt.darker(root.contentForeground, 1.3)
+                font.family: root.contentFontFamily
+                font.pixelSize: Style.font.bodySmall
+                font.bold: true
+              }
+
+              Repeater {
+                model: root.selectedEvents
+
+                Rectangle {
+                  required property var modelData
+                  width: agendaColumn.width
+                  height: eventTitle.implicitHeight + Style.space(10)
+                  color: "transparent"
+
+                  Rectangle {
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: Style.space(3)
+                    color: Color.accent
+                  }
+
+                  Text {
+                    id: eventTitle
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: Style.space(5)
+                    leftPadding: Style.space(6)
+                    text: (modelData.allDay ? "ALL DAY  " : Model.eventTimeLabel(modelData, root.labelLocale) + "  ") + Model.eventDisplayTitle(modelData, root.eventTitleLimit)
+                    color: root.contentForeground
+                    font.family: root.contentFontFamily
+                    font.pixelSize: Style.font.bodySmall
+                    elide: Text.ElideRight
+                  }
+                }
+              }
+
+              Text {
+                visible: root.selectedEvents.length === 0
+                text: "No events"
+                color: Qt.darker(root.contentForeground, 1.8)
+                font.family: root.contentFontFamily
+                font.pixelSize: Style.font.bodySmall
               }
             }
           }
