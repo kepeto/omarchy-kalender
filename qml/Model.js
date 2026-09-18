@@ -278,6 +278,61 @@ function stepMonth(year, month, delta) {
   return { year: target.getFullYear(), month: target.getMonth() }
 }
 
+// ---- Kalender event helpers ------------------------------------------------
+// Events are normalized before they reach QML. Keep these functions pure so
+// Google Calendar, fixture data, and future local providers share one model.
+function eventDateKey(event) {
+  if (!event) return ""
+  if (event.allDay) return String(event.startDate || event.date || "")
+  var start = new Date(event.start || event.startTime || 0)
+  return isNaN(start.getTime()) ? "" : keyForDate(start)
+}
+
+function eventStartDate(event) {
+  if (!event) return null
+  if (event.allDay) {
+    var parts = String(event.startDate || event.date || "").split("-")
+    if (parts.length === 3) return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+  }
+  var date = new Date(event.start || event.startTime || 0)
+  return isNaN(date.getTime()) ? null : date
+}
+
+function eventSortKey(event) {
+  var date = eventStartDate(event)
+  return date ? date.getTime() : Number.MAX_SAFE_INTEGER
+}
+
+function sortEvents(events) {
+  return (events || []).slice().sort(function(a, b) {
+    return eventSortKey(a) - eventSortKey(b)
+  })
+}
+
+function eventsForDate(events, key) {
+  return sortEvents((events || []).filter(function(event) {
+    return eventDateKey(event) === String(key || "")
+  }))
+}
+
+function clipEventTitle(title, limit) {
+  var text = String(title === undefined || title === null ? "" : title).trim()
+  var max = Number(limit)
+  if (!isFinite(max) || max < 4) max = 20
+  if (text.length <= max) return text
+  return text.slice(0, max - 3).trimEnd() + "..."
+}
+
+function eventTimeLabel(event, locale) {
+  if (!event || event.allDay) return ""
+  var date = eventStartDate(event)
+  return date && locale ? locale.toString(date, Locale.ShortFormat) : ""
+}
+
+function eventDisplayTitle(event, limit) {
+  return clipEventTitle(event && (event.title || event.summary), limit)
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     dateKey: dateKey,
@@ -303,6 +358,14 @@ if (typeof module !== "undefined") {
     clockNeedsSeconds: clockNeedsSeconds,
     clockFormatRing: clockFormatRing,
     nextClockFormat: nextClockFormat,
-    isoWeekLiteral: isoWeekLiteral
+    isoWeekLiteral: isoWeekLiteral,
+    eventDateKey: eventDateKey,
+    eventStartDate: eventStartDate,
+    eventSortKey: eventSortKey,
+    sortEvents: sortEvents,
+    eventsForDate: eventsForDate,
+    clipEventTitle: clipEventTitle,
+    eventTimeLabel: eventTimeLabel,
+    eventDisplayTitle: eventDisplayTitle
   }
 }

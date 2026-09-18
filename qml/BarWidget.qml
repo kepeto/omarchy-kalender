@@ -5,6 +5,10 @@ import qs.Commons
 import qs.Ui
 import "Model.js" as Model
 
+// Kalender keeps the bar label compact: the current time and the next event
+// are rendered as separate segments so an event time cannot be mistaken for
+// the clock. Event data is supplied by the sync/cache service in phase 2.
+
 // Date/time label for the bar, and the host for the calendar popup.
 //
 // Left click reveals the calendar — asking "what is the date?" is what a
@@ -15,6 +19,12 @@ BarWidget {
   moduleName: "kepeto.kalender"
 
   property date displayDate: clock.date
+  property var events: []
+  readonly property var nextEvent: Model.sortEvents(events).filter(function(event) {
+    var start = Model.eventStartDate(event)
+    return start && start.getTime() >= displayDate.getTime()
+  })[0] || null
+  readonly property int eventTitleLimit: Number(setting("eventTitleLimit", 20))
 
   readonly property string configuredFormat: vertical
     ? setting("verticalFormat", "HH\n—\nmm")
@@ -33,10 +43,26 @@ BarWidget {
   // repaint a second is a price only the formats that print seconds pay.
   readonly property bool showsSeconds: Model.clockNeedsSeconds(activeFormat)
   readonly property string displayText: formatted(displayDate)
+  readonly property string eventText: nextEvent
+    ? (nextEvent.allDay ? "" : Model.eventTimeLabel(nextEvent, Qt.locale()) + " " + Model.eventDisplayTitle(nextEvent, eventTitleLimit))
+    : ""
+  readonly property string barText: eventText === "" ? displayText : displayText + "  ·  ⏰  " + eventText
   readonly property var verticalLines: displayText.split("\n")
+
+  function loadEvents(raw) {
+    try {
+      var parsed = JSON.parse(String(raw || "[]"))
+      root.events = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.events) ? parsed.events : [])
+    } catch (error) {
+      console.warn("kalender: unable to parse event cache:", error)
+      root.events = []
+    }
+    injectPanel()
+  }
 
   function refresh() {
     displayDate = new Date()
+    eventFile.reload()
     if (panelLoader.item && panelLoader.item.refresh) panelLoader.item.refresh()
   }
 
@@ -105,6 +131,7 @@ BarWidget {
     if ("settings" in target) target.settings = root.settings
     if ("anchorItem" in target) target.anchorItem = button
     if ("hostWidget" in target) target.hostWidget = root
+    if ("events" in target) target.events = root.events
   }
 
   implicitWidth: button.implicitWidth
@@ -112,6 +139,15 @@ BarWidget {
 
   onBarChanged: injectPanel()
   onSettingsChanged: injectPanel()
+
+  FileView {
+    id: eventFile
+    path: String(setting("eventCache", Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache"))) + "/kalender/events.json"
+    watchChanges: true
+    printErrors: false
+    onLoaded: root.loadEvents(text())
+    onLoadFailed: root.events = []
+  }
 
   SystemClock {
     id: clock
@@ -147,7 +183,7 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.vertical ? "" : root.displayText
+    text: root.vertical ? "" : root.barText
     labelVisible: !root.vertical
     hasVisualContent: root.vertical ? root.verticalLines.length > 0 : text !== ""
     fixedHeight: root.vertical ? root.verticalLines.length * Style.bar.iconSlot : -1

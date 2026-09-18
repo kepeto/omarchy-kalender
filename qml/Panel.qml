@@ -71,6 +71,21 @@ Panel {
   readonly property var weekdays: Model.weekdayOrder(weekStart)
   readonly property var weeks: Model.monthGrid(viewYear, viewMonth, weekStart, todayKey)
 
+  // Phase 2 starts with fixture/cache data and keeps the UI independent of
+  // the Google provider. The same normalized event objects will be consumed
+  // by the sync service once it is added.
+  property var events: []
+  property string displayMode: String(setting("mode", "calendar"))
+  property string selectedDateKey: todayKey
+  readonly property int eventTitleLimit: Number(setting("eventTitleLimit", 20))
+  readonly property var selectedEvents: Model.eventsForDate(events, selectedDateKey)
+  readonly property bool agendaMode: displayMode === "agenda"
+  readonly property bool hybridMode: displayMode === "hybrid"
+
+  onEventsChanged: {
+    if (root.hostWidget && "events" in root.hostWidget) root.hostWidget.events = root.events
+  }
+
 
   // Guarded so the widget renders before the bar is injected (the bar-widget
   // contract instantiates it bare).
@@ -132,6 +147,25 @@ Panel {
   function goToToday() {
     root.viewYear = today.getFullYear()
     root.viewMonth = today.getMonth()
+    root.selectedDateKey = todayKey
+  }
+
+  function selectDate(day) {
+    root.selectedDateKey = day.key
+    root.viewYear = day.year
+    root.viewMonth = day.month
+  }
+
+  function cycleDisplayMode() {
+    var modes = ["calendar", "agenda", "hybrid"]
+    var index = modes.indexOf(root.displayMode)
+    var next = modes[(index + 1 + modes.length) % modes.length]
+    root.displayMode = next
+    persistSettings({ mode: next })
+  }
+
+  function modeLabel() {
+    return root.displayMode === "agenda" ? "Agenda" : root.displayMode === "hybrid" ? "Hybrid" : "Calendar"
   }
 
   function moveMonth(delta) {
@@ -242,7 +276,7 @@ Panel {
     open: root.opened
     centerOnBar: true
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(560))
+    contentWidth: panel.fittedContentWidth(root.hybridMode ? Style.space(900) : Style.space(560))
     contentHeight: panel.fittedContentHeight(calendarColumn.implicitHeight)
 
     PanelKeyCatcher {
@@ -263,6 +297,7 @@ Panel {
         else if (t === "}") root.moveYear(1)
         else if (t === "t" || t === "T") root.goToToday()
         else if (t === "w" || t === "W") root.toggleWeekStart()
+        else if (t === "m" || t === "M") root.cycleDisplayMode()
       }
 
       Flickable {
@@ -537,10 +572,82 @@ Panel {
             }
           }
 
-          // ---- Month grid: week numbers down a gutter on the left, then
-          //      the seven day columns. Always six rows, so the popup is
-          //      exactly as tall in February as it is in August.
+          // Display mode is persisted per widget. Keyboard shortcut: M.
           Item {
+            width: parent.width
+            height: modeButton.implicitHeight + Style.space(8)
+
+            PanelActionButton {
+              id: modeButton
+              anchors.horizontalCenter: parent.horizontalCenter
+              iconText: root.modeLabel()
+              tooltipText: "Switch view (M)"
+              foreground: root.contentForeground
+              fontFamily: root.contentFontFamily
+              onClicked: root.cycleDisplayMode()
+            }
+          }
+
+          // Agenda data is shared by agenda and hybrid modes. The hybrid
+          // layout is introduced as a compact two-column arrangement in the
+          // next UI pass; keeping this data block separate makes that change
+          // mechanical without touching the event model.
+          Item {
+            visible: root.agendaMode || root.hybridMode
+            width: parent.width
+            height: agendaColumn.implicitHeight
+
+            Column {
+              id: agendaColumn
+              width: parent.width
+              spacing: Style.space(6)
+
+              Text {
+                text: root.selectedDateKey
+                color: Qt.darker(root.contentForeground, 1.4)
+                font.family: root.contentFontFamily
+                font.pixelSize: Style.font.bodySmall
+              }
+
+              Repeater {
+                model: root.selectedEvents
+
+                Rectangle {
+                  required property var modelData
+                  width: agendaColumn.width
+                  height: eventTitle.implicitHeight + Style.space(14)
+                  radius: Style.cornerRadius
+                  color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.06)
+
+                  Text {
+                    id: eventTitle
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: Style.space(7)
+                    text: (modelData.allDay ? "ALL DAY  " : Model.eventTimeLabel(modelData, root.labelLocale) + "  ") + Model.eventDisplayTitle(modelData, root.eventTitleLimit)
+                    color: root.contentForeground
+                    font.family: root.contentFontFamily
+                    font.pixelSize: Style.font.bodySmall
+                    elide: Text.ElideRight
+                  }
+                }
+              }
+
+              Text {
+                visible: root.selectedEvents.length === 0
+                text: "No events"
+                color: Qt.darker(root.contentForeground, 1.8)
+                font.family: root.contentFontFamily
+                font.pixelSize: Style.font.bodySmall
+              }
+            }
+          }
+
+          // ---- Month grid: week numbers down a gutter on the left, then
+          //      the seven day columns. Always six rows of seven days.
+          Item {
+            visible: !root.agendaMode
             width: parent.width
             height: gridColumn.y + gridColumn.height
 
@@ -679,6 +786,22 @@ Panel {
                         font.pixelSize: Style.font.body
                         font.bold: modelData.today
                       }
+
+                      Text {
+                        visible: Model.eventsForDate(root.events, modelData.key).length > 0
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        anchors.rightMargin: Style.space(4)
+                        anchors.bottomMargin: Style.space(2)
+                        text: "•"
+                        color: Color.accent
+                        font.pixelSize: Style.font.caption
+                      }
+
+                      MouseArea {
+                        anchors.fill: parent
+                        onClicked: root.selectDate(modelData)
+                      }
                     }
                   }
                 }
@@ -704,6 +827,7 @@ Panel {
           //      The label is centered and fixed-width, so it holds still
           //      from "MAY" to "SEPTEMBER".
           Item {
+            visible: !root.agendaMode
             width: parent.width
             height: monthNav.height
 
