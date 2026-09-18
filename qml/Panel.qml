@@ -287,7 +287,7 @@ Panel {
     open: root.opened
     centerOnBar: true
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(root.hybridMode ? Style.space(720) : Style.space(420))
+    contentWidth: panel.fittedContentWidth(root.hybridMode ? Style.space(680) : Style.space(390))
     contentHeight: panel.fittedContentHeight(calendarColumn.implicitHeight + Style.space(16))
 
     PanelKeyCatcher {
@@ -875,11 +875,12 @@ Panel {
                     anchors.top: parent.top
                     anchors.margins: Style.space(5)
                     leftPadding: Style.space(6)
-                    text: (modelData.allDay ? "ALL DAY  " : Model.eventTimeLabel(modelData, root.labelLocale) + "  ") + Model.eventDisplayTitle(modelData, root.eventTitleLimit)
+                    text: (modelData.allDay ? "ALL DAY  " : Model.eventTimeLabel(modelData, root.labelLocale) + "  ") + String(modelData.title || modelData.summary || "(untitled)")
                     color: root.contentForeground
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.bodySmall
-                    elide: Text.ElideRight
+                    wrapMode: Text.Wrap
+                    maximumLineCount: 0
                   }
                 }
               }
