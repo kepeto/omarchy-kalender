@@ -73,6 +73,10 @@ Panel {
   readonly property string nextWeekStartLabel: labelLocale.dayName(Model.toggledWeekStart(weekStart), Locale.LongFormat)
   readonly property var weekdays: Model.weekdayOrder(weekStart)
   readonly property string uiCalendarLabel: root.displayMode === "calendar" ? "Calendar" : root.displayMode === "agenda" ? "Agenda" : "Hybrid"
+  readonly property int compactCellWidth: Style.space(44)
+  readonly property int compactCellHeight: Style.space(38)
+  readonly property int compactWeekWidth: Style.space(28)
+  readonly property int compactGutter: Style.space(8)
   readonly property var weeks: Model.monthGrid(viewYear, viewMonth, weekStart, todayKey)
 
   // Phase 2 starts with fixture/cache data and keeps the UI independent of
@@ -280,8 +284,8 @@ Panel {
     open: root.opened
     centerOnBar: true
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(root.hybridMode ? Style.space(900) : Style.space(560))
-    contentHeight: panel.fittedContentHeight(calendarColumn.implicitHeight)
+    contentWidth: panel.fittedContentWidth(root.hybridMode ? Style.space(720) : Style.space(420))
+    contentHeight: panel.fittedContentHeight(calendarColumn.implicitHeight + Style.space(16))
 
     PanelKeyCatcher {
       id: keyCatcher
@@ -613,7 +617,7 @@ Panel {
                 // self-evident, so it carries a tooltip naming the day the
                 // click will switch to.
                 Rectangle {
-                  width: root.weekColumnWidth
+                  width: root.compactWeekWidth
                   height: Style.space(16)
                   radius: Style.cornerRadius
                   color: weekStartMouse.containsMouse
@@ -648,7 +652,7 @@ Panel {
                 }
 
                 Item {
-                  width: root.gutterWidth
+                  width: root.compactGutter
                   height: Style.space(16)
                 }
 
@@ -658,7 +662,7 @@ Panel {
                   Text {
                     textFormat: Text.PlainText
                     required property var modelData
-                    width: root.cellWidth
+                    width: root.compactCellWidth
                     height: Style.space(16)
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
@@ -681,8 +685,8 @@ Panel {
 
                   Text {
                     textFormat: Text.PlainText
-                    width: root.weekColumnWidth
-                    height: root.cellHeight
+                    width: root.compactWeekWidth
+                    height: root.compactCellHeight
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     text: modelData.week
@@ -692,8 +696,8 @@ Panel {
                   }
 
                   Item {
-                    width: root.gutterWidth
-                    height: root.cellHeight
+                    width: root.compactGutter
+                    height: root.compactCellHeight
                   }
 
                   Repeater {
@@ -702,8 +706,8 @@ Panel {
                     Rectangle {
                       required property var modelData
 
-                      width: root.cellWidth
-                      height: root.cellHeight
+                      width: root.compactCellWidth
+                      height: root.compactCellHeight
                       radius: Style.cornerRadius
                       color: modelData.today
                         ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.18)
