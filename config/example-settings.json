@@ -10,6 +10,7 @@
   "notifyMinutes": [60, 30, 15, 0],
   "allDayNotificationTime": "08:00",
   "eventTitleLimit": 20,
+  "barEventWindowMinutes": 60,
   "marqueeEnabled": true,
   "marqueeOnStart": true,
   "marqueeEveryMinutes": 15
