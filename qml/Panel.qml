@@ -330,9 +330,8 @@ Panel {
 
             Row {
               id: heroRow
-              width: parent.width
               anchors.horizontalCenter: parent.horizontalCenter
-              spacing: Style.space(10)
+              spacing: Style.space(12)
 
               Text {
                 anchors.baseline: heroDate.baseline
@@ -341,22 +340,28 @@ Panel {
                   ? Style.hoverStateColor(root.contentForeground, Color.accent)
                   : root.contentForeground
                 font.family: root.contentFontFamily
-                font.pixelSize: 32
+                font.pixelSize: 34
               }
 
               Text {
                 id: heroDate
-                width: Math.max(0, parent.width - 52)
                 textFormat: Text.PlainText
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.labelLocale.toString(root.today, "MMMM d")
-                elide: Text.ElideRight
                 color: heroMouse.containsMouse
                   ? Style.hoverStateColor(root.contentForeground, Color.accent)
                   : root.contentForeground
                 font.family: root.contentFontFamily
-                font.pixelSize: 34
+                font.pixelSize: 42
                 font.bold: true
+              }
+
+              Text {
+                text: "⚙"
+                anchors.baseline: heroDate.baseline
+                color: Qt.darker(root.contentForeground, 1.3)
+                font.family: root.contentFontFamily
+                font.pixelSize: Style.font.body
               }
             }
 
@@ -589,24 +594,24 @@ Panel {
             }
           }
 
-          // Agenda data is shared by agenda and hybrid modes. The hybrid
-          // layout uses two columns: calendar on the left and agenda on the right.
+          // Event agenda follows the mockup: one compact time/title row per event.
           Item {
             visible: root.agendaMode || root.hybridMode
             width: parent.width
-            height: agendaColumn.implicitHeight
+            height: agendaColumn.implicitHeight + Style.space(8)
             anchors.horizontalCenter: parent.horizontalCenter
 
             Column {
               id: agendaColumn
               width: parent.width
-              spacing: Style.space(6)
+              spacing: Style.space(4)
 
               Text {
-                text: root.selectedDateKey
-                color: Qt.darker(root.contentForeground, 1.4)
+                text: root.labelLocale.toString(new Date(root.selectedDateKey + "T00:00:00"), "dddd d MMMM").toUpperCase()
+                color: Qt.darker(root.contentForeground, 1.3)
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.bodySmall
+                font.bold: true
               }
 
               Repeater {
@@ -615,16 +620,24 @@ Panel {
                 Rectangle {
                   required property var modelData
                   width: agendaColumn.width
-                  height: eventTitle.implicitHeight + Style.space(14)
-                  radius: Style.cornerRadius
-                  color: Qt.rgba(root.contentForeground.r, root.contentForeground.g, root.contentForeground.b, 0.06)
+                  height: eventTitle.implicitHeight + Style.space(10)
+                  color: "transparent"
+
+                  Rectangle {
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: Style.space(3)
+                    color: modelData.allDay ? Color.accent : Color.accent
+                  }
 
                   Text {
                     id: eventTitle
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: parent.top
-                    anchors.margins: Style.space(7)
+                    anchors.margins: Style.space(5)
+                    leftPadding: Style.space(6)
                     text: (modelData.allDay ? "ALL DAY  " : Model.eventTimeLabel(modelData, root.labelLocale) + "  ") + Model.eventDisplayTitle(modelData, root.eventTitleLimit)
                     color: root.contentForeground
                     font.family: root.contentFontFamily

@@ -333,6 +333,14 @@ function eventDisplayTitle(event, limit) {
   return clipEventTitle(event && (event.title || event.summary), limit)
 }
 
+function eventMinutesUntil(event, now) {
+  if (!event || event.allDay) return null
+  var start = eventStartDate(event)
+  var current = now instanceof Date ? now : new Date(now || Date.now())
+  if (!start || isNaN(current.getTime())) return null
+  return Math.round((start.getTime() - current.getTime()) / 60000)
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
     dateKey: dateKey,
@@ -357,6 +365,7 @@ if (typeof module !== "undefined") {
     clockFormats: clockFormats,
     clockNeedsSeconds: clockNeedsSeconds,
     clockFormatRing: clockFormatRing,
+    eventMinutesUntil: eventMinutesUntil,
     nextClockFormat: nextClockFormat,
     isoWeekLiteral: isoWeekLiteral,
     eventDateKey: eventDateKey,
