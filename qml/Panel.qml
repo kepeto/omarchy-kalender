@@ -70,6 +70,9 @@ Panel {
   // LANG in Omarchy. Resolve the active time locale explicitly.
   readonly property string localeName: String(setting("locale", Quickshell.env("LC_TIME") || Quickshell.env("LANG") || "en_US")).replace(/\.UTF-8$/, "")
   readonly property var labelLocale: Qt.locale(root.localeName)
+  readonly property int agendaDayCount: 6
+  readonly property int agendaWidth: agendaDayCount * compactCellWidth + (agendaDayCount - 1) * cellSpacing
+  readonly property int agendaLeftOffset: compactWeekWidth + cellSpacing + compactGutter
   readonly property string nextWeekStartLabel: labelLocale.dayName(Model.toggledWeekStart(weekStart), Locale.LongFormat)
   readonly property var weekdays: Model.weekdayOrder(weekStart)
   readonly property string uiCalendarLabel: root.displayMode === "calendar" ? "Calendar" : root.displayMode === "agenda" ? "Agenda" : "Hybrid"
@@ -831,9 +834,9 @@ Panel {
           // Agenda is placed below the calendar, matching the reference mockup.
           Item {
             visible: root.agendaMode || root.hybridMode
-            width: parent.width
+            x: gridColumn.x + root.agendaLeftOffset
+            width: root.agendaWidth
             height: agendaColumn.implicitHeight + Style.space(8)
-            anchors.horizontalCenter: parent.horizontalCenter
 
             Column {
               id: agendaColumn
