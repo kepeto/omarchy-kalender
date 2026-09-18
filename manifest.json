@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "kepeto.kalender",
+  "name": "Kalender",
+  "version": "0.1.0",
+  "author": "kepeto",
+  "description": "A localized calendar widget with agenda views and Google Calendar integration.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "qml/BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Kalender",
+    "description": "Localized calendar, agenda, and Google Calendar events",
+    "category": "Time",
+    "allowMultiple": false,
+    "defaultSection": "center"
+  }
+}

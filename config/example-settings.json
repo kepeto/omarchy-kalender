@@ -1,0 +1,14 @@
+{
+  "id": "kepeto.kalender",
+  "mode": "hybrid",
+  "locale": "",
+  "calendarIds": ["primary"],
+  "syncIntervalMinutes": 5,
+  "notificationsEnabled": true,
+  "notifyMinutes": [60, 30, 15, 0],
+  "allDayNotificationTime": "08:00",
+  "eventTitleLimit": 20,
+  "marqueeEnabled": true,
+  "marqueeOnStart": true,
+  "marqueeEveryMinutes": 15
+}
