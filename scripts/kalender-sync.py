@@ -1,60 +1,249 @@
 #!/usr/bin/env python3
-"""Kalender sync scaffold.
+"""Google Calendar synchronizer for Kalender.
 
-This intentionally does not contain OAuth credentials. It provides the stable
-normalized cache contract consumed by the QML plugin and is ready for the
-Google Calendar OAuth/API implementation in the next phase.
+Uses only Python's standard library so it can run without installing packages.
+OAuth credentials are supplied by the user and never copied into the plugin.
+The normalized cache is consumed by QML at ~/.cache/kalender/events.json.
 """
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
+import http.server
 import json
 import os
+import secrets
+import socket
+import subprocess
 import tempfile
-from datetime import datetime, timezone
+import threading
+import time
+import urllib.parse
+import urllib.request
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
+TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
+CALENDAR_ENDPOINT = "https://www.googleapis.com/calendar/v3"
+SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
 
 
 def cache_path() -> Path:
-    root = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
-    return root / "kalender" / "events.json"
+    return Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "kalender" / "events.json"
 
 
-def write_cache(events: list[dict], path: Path) -> None:
+def state_path() -> Path:
+    return Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / "kalender"
+
+
+def load_json(path: Path, default=None):
+    try:
+        with path.open(encoding="utf-8") as handle:
+            return json.load(handle)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return default
+
+
+def atomic_json(path: Path, value: object, mode: int = 0o600) -> None:
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    payload = {
-        "version": 1,
-        "updated": datetime.now(timezone.utc).isoformat(),
-        "events": events,
-    }
-    fd, tmp = tempfile.mkstemp(prefix="events.", suffix=".json", dir=path.parent)
+    os.chmod(path.parent, 0o700)
+    fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle, ensure_ascii=False, indent=2)
+            json.dump(value, handle, ensure_ascii=False, indent=2)
             handle.write("\n")
-        os.chmod(tmp, 0o600)
+        os.chmod(tmp, mode)
         os.replace(tmp, path)
     finally:
         if os.path.exists(tmp):
             os.unlink(tmp)
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--fixture", type=Path, help="write a fixture JSON array")
-    parser.add_argument("--cache", type=Path, default=cache_path())
-    args = parser.parse_args()
+def credentials(path: Path) -> tuple[str, str]:
+    data = load_json(path, {}) or {}
+    installed = data.get("installed", data.get("web", data))
+    client_id = installed.get("client_id")
+    client_secret = installed.get("client_secret")
+    if not client_id or not client_secret:
+        raise SystemExit(f"Invalid Google OAuth client file: {path}")
+    return client_id, client_secret
 
-    events = []
-    if args.fixture:
-        with args.fixture.open(encoding="utf-8") as handle:
-            events = json.load(handle)
-        if not isinstance(events, list):
-            raise SystemExit("fixture must contain a JSON array")
 
-    write_cache(events, args.cache)
-    print(args.cache)
+def post_form(url: str, values: dict[str, str]) -> dict:
+    body = urllib.parse.urlencode(values).encode()
+    request = urllib.request.Request(url, data=body, headers={"Content-Type": "application/x-www-form-urlencoded"})
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return json.loads(response.read().decode())
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode(errors="replace")
+        raise RuntimeError(f"Google OAuth HTTP {error.code}: {detail}") from error
+
+
+def oauth(client_file: Path, no_browser: bool = False) -> dict:
+    client_id, client_secret = credentials(client_file)
+    token_file = state_path() / "token.json"
+    token = load_json(token_file, {}) or {}
+    if token.get("refresh_token"):
+        refreshed = post_form(TOKEN_ENDPOINT, {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "refresh_token": token["refresh_token"],
+            "grant_type": "refresh_token",
+        })
+        token.update(refreshed)
+        token["refresh_token"] = token.get("refresh_token", token.get("refresh_token"))
+        atomic_json(token_file, token)
+        return token
+
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+
+    code_holder: dict[str, str] = {}
+    state = secrets.token_urlsafe(24)
+
+    class Callback(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            if query.get("state", [""])[0] != state:
+                self.send_error(400, "Invalid OAuth state")
+                return
+            code_holder["code"] = query.get("code", [""])[0]
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"Kalender authorization complete. You can close this tab.")
+
+        def log_message(self, *_args):
+            return
+
+    server = http.server.HTTPServer(("127.0.0.1", port), Callback)
+    thread = threading.Thread(target=server.handle_request, daemon=True)
+    thread.start()
+    redirect = f"http://127.0.0.1:{port}/oauth2callback"
+    query = urllib.parse.urlencode({
+        "client_id": client_id,
+        "redirect_uri": redirect,
+        "response_type": "code",
+        "scope": SCOPE,
+        "access_type": "offline",
+        "prompt": "consent",
+        "state": state,
+    })
+    url = f"{AUTH_ENDPOINT}?{query}"
+    print(f"Authorize Kalender in your browser:\n{url}", flush=True)
+    if not no_browser:
+        subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    thread.join(timeout=300)
+    server.server_close()
+    if not code_holder.get("code"):
+        raise SystemExit("OAuth callback timed out or was cancelled")
+    token = post_form(TOKEN_ENDPOINT, {
+        "code": code_holder["code"],
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "redirect_uri": redirect,
+        "grant_type": "authorization_code",
+    })
+    atomic_json(token_file, token)
+    return token
+
+
+def api_get(path: str, token: str, params: dict[str, str] | None = None) -> dict:
+    url = CALENDAR_ENDPOINT + path
+    if params:
+        url += "?" + urllib.parse.urlencode(params)
+    request = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return json.loads(response.read().decode())
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode(errors="replace")
+        raise RuntimeError(f"Google Calendar HTTP {error.code}: {detail}") from error
+
+
+def iso_utc(value: datetime) -> str:
+    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def normalize_event(item: dict) -> dict | None:
+    start = item.get("start", {})
+    end = item.get("end", {})
+    if "date" in start:
+        return {
+            "id": item.get("id", ""),
+            "calendarId": item.get("calendarId", "primary"),
+            "title": item.get("summary", "(untitled)"),
+            "description": item.get("description", ""),
+            "location": item.get("location", ""),
+            "startDate": start["date"],
+            "endDate": end.get("date", start["date"]),
+            "allDay": True,
+            "htmlLink": item.get("htmlLink", ""),
+            "status": item.get("status", "confirmed"),
+        }
+    raw_start = start.get("dateTime")
+    raw_end = end.get("dateTime")
+    if not raw_start:
+        return None
+    return {
+        "id": item.get("id", ""),
+        "calendarId": item.get("calendarId", "primary"),
+        "title": item.get("summary", "(untitled)"),
+        "description": item.get("description", ""),
+        "location": item.get("location", ""),
+        "start": raw_start,
+        "end": raw_end or raw_start,
+        "allDay": False,
+        "htmlLink": item.get("htmlLink", ""),
+        "status": item.get("status", "confirmed"),
+    }
+
+
+def sync(args) -> int:
+    token = oauth(args.client_secret, args.no_browser)
+    now = datetime.now().astimezone()
+    window_end = now + timedelta(days=args.days)
+    events: list[dict] = []
+    calendar_ids = args.calendar_id or ["primary"]
+    for calendar_id in calendar_ids:
+        page_token = None
+        while True:
+            params = {
+                "singleEvents": "true",
+                "orderBy": "startTime",
+                "showDeleted": "false",
+                "timeMin": iso_utc(now),
+                "timeMax": iso_utc(window_end),
+                "maxResults": "2500",
+            }
+            if page_token:
+                params["pageToken"] = page_token
+            data = api_get(f"/calendars/{urllib.parse.quote(calendar_id, safe='')}/events", token, params)
+            for item in data.get("items", []):
+                event = normalize_event({**item, "calendarId": calendar_id})
+                if event and event.get("status") != "cancelled":
+                    events.append(event)
+            page_token = data.get("nextPageToken")
+            if not page_token:
+                break
+    events.sort(key=lambda event: (event.get("startDate") or event.get("start") or "", event.get("title", "")))
+    atomic_json(args.cache, {"version": 1, "updated": datetime.now(timezone.utc).isoformat(), "events": events})
+    print(f"Synced {len(events)} events to {args.cache}")
     return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Sync Google Calendar events for Kalender")
+    parser.add_argument("--client-secret", type=Path, required=True, help="Google OAuth desktop client JSON")
+    parser.add_argument("--calendar-id", action="append", help="Calendar ID; repeat for multiple calendars (default: primary)")
+    parser.add_argument("--days", type=int, default=30, help="Days ahead to fetch (default: 30)")
+    parser.add_argument("--cache", type=Path, default=cache_path())
+    parser.add_argument("--no-browser", action="store_true")
+    args = parser.parse_args()
+    return sync(args)
 
 
 if __name__ == "__main__":

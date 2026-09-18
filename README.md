@@ -2,7 +2,7 @@
 
 Omarchy shell calendar plugin by **kepeto**.
 
-> Status: phase 2. The normalized event model, calendar event markers, agenda mode, and cache reader are implemented. Google OAuth/API and notification scheduling remain next.
+> Status: Google Calendar sync is implemented using a standard-library Python OAuth loopback flow. The normalized event model, calendar event markers, agenda mode, and cache reader are included. Notification scheduling remains next.
 
 ## Planned features
 
@@ -21,7 +21,7 @@ Omarchy shell calendar plugin by **kepeto**.
 - `qml/Panel.qml` — forked stock calendar panel, now using the configured Qt locale for labels.
 - `qml/Model.js` — forked date/calendar logic.
 - `docs/PLAN.md` — implementation plan, decisions, and open questions.
-- `scripts/kalender-sync.py` — atomic normalized event-cache scaffold.
+- `scripts/kalender-sync.py` — Google OAuth loopback sync, Calendar API fetch, normalization, and atomic cache writer.
 
 ## Development
 
@@ -34,8 +34,11 @@ omarchy-shell shell rescanPlugins
 omarchy plugin enable kepeto.kalender
 omarchy bar put kepeto.kalender --section center
 
+# First-time Google OAuth + sync (create a Google OAuth Desktop client JSON first)
+python3 scripts/kalender-sync.py --client-secret ~/.config/kalender/client_secret.json
+
 # Optional fixture cache for local UI testing
-python3 scripts/kalender-sync.py --fixture config/events.example.json
+python3 scripts/kalender-sync.py --fixture config/events.example.json --cache ~/.cache/kalender/events.json
 ```
 
 Read the code before enabling it: Omarchy plugins execute unsandboxed inside the long-running `omarchy-shell` process.

@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "updated": "2026-09-18T11:05:00+00:00",
+  "events": [
+    {
+      "id": "demo-timed",
+      "calendarId": "primary",
+      "title": "Kuliah Bimo: English Literature",
+      "start": "2026-09-18T12:40:00+07:00",
+      "end": "2026-09-18T14:00:00+07:00",
+      "allDay": false,
+      "status": "confirmed"
+    },
+    {
+      "id": "demo-all-day",
+      "calendarId": "primary",
+      "title": "Team offsite",
+      "startDate": "2026-09-18",
+      "endDate": "2026-09-19",
+      "allDay": true,
+      "status": "confirmed"
+    }
+  ]
+}

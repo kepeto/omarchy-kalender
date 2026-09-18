@@ -320,7 +320,7 @@ function clipEventTitle(title, limit) {
   var max = Number(limit)
   if (!isFinite(max) || max < 4) max = 20
   if (text.length <= max) return text
-  return text.slice(0, max - 3).trimEnd() + "..."
+  return text.slice(0, max - 3).replace(/\s+$/, "") + "..."
 }
 
 function eventTimeLabel(event, locale) {

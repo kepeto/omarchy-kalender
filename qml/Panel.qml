@@ -69,6 +69,7 @@ Panel {
   readonly property var labelLocale: Qt.locale(setting("locale", ""))
   readonly property string nextWeekStartLabel: labelLocale.dayName(Model.toggledWeekStart(weekStart), Locale.LongFormat)
   readonly property var weekdays: Model.weekdayOrder(weekStart)
+  readonly property string uiCalendarLabel: root.displayMode === "calendar" ? "Calendar" : root.displayMode === "agenda" ? "Agenda" : "Hybrid"
   readonly property var weeks: Model.monthGrid(viewYear, viewMonth, weekStart, todayKey)
 
   // Phase 2 starts with fixture/cache data and keeps the UI independent of
@@ -326,8 +327,9 @@ Panel {
 
             Row {
               id: heroRow
+              width: parent.width
               anchors.horizontalCenter: parent.horizontalCenter
-              spacing: Style.space(12)
+              spacing: Style.space(10)
 
               Text {
                 anchors.baseline: heroDate.baseline
@@ -336,19 +338,21 @@ Panel {
                   ? Style.hoverStateColor(root.contentForeground, Color.accent)
                   : root.contentForeground
                 font.family: root.contentFontFamily
-                font.pixelSize: 38
+                font.pixelSize: 32
               }
 
               Text {
                 id: heroDate
+                width: Math.max(0, parent.width - 52)
                 textFormat: Text.PlainText
                 anchors.verticalCenter: parent.verticalCenter
                 text: root.labelLocale.toString(root.today, "MMMM d")
+                elide: Text.ElideRight
                 color: heroMouse.containsMouse
                   ? Style.hoverStateColor(root.contentForeground, Color.accent)
                   : root.contentForeground
                 font.family: root.contentFontFamily
-                font.pixelSize: 42
+                font.pixelSize: 34
                 font.bold: true
               }
             }
@@ -574,7 +578,7 @@ Panel {
             PanelActionButton {
               id: modeButton
               anchors.horizontalCenter: parent.horizontalCenter
-              iconText: root.modeLabel()
+              iconText: root.uiCalendarLabel
               tooltipText: "Switch view (M)"
               foreground: root.contentForeground
               fontFamily: root.contentFontFamily

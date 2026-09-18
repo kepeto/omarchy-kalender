@@ -142,7 +142,7 @@ BarWidget {
 
   FileView {
     id: eventFile
-    path: String(setting("eventCache", Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache"))) + "/kalender/events.json"
+    path: String(setting("eventCache", (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/kalender/events.json")).replace(/^~/, Quickshell.env("HOME"))
     watchChanges: true
     printErrors: false
     onLoaded: root.loadEvents(text())
